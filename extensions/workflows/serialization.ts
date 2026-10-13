@@ -36,14 +36,19 @@ function byteLength(value: string) {
 }
 
 function boundedPath(parent: string, child: string) {
-  // Count and cut on code points: a UTF-16 unit cut can split a surrogate pair
-  // and leave a lone surrogate in the reported path, which reaches error
-  // messages and artifacts that cannot represent it.
-  const characters = [...child];
-  const childPreview =
-    characters.length <= 128
-      ? child
-      : `${characters.slice(0, 128).join("")}...[key truncated]`;
+  // Retain whole code points without scanning or allocating the entire key
+  // merely to report a diagnostic path. The 129th proves truncation is needed.
+  let prefix = "";
+  let count = 0;
+  let childPreview = child;
+  for (const character of child) {
+    if (count === 128) {
+      childPreview = `${prefix}...[key truncated]`;
+      break;
+    }
+    prefix += character;
+    count++;
+  }
   const path = `${parent}.${childPreview}`;
   return byteLength(path) <= 256
     ? path
